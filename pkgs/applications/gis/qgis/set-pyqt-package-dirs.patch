@@ -39,7 +39,7 @@ index 69e41c1fe9..5456c3d59b 100644
      ENDIF(_qsci_metadata)
  
      IF(QSCI_MOD_VERSION_STR)
--      SET(QSCI_SIP_DIR "${PYQT5_SIP_DIR}")
+-      SET(QSCI_SIP_DIR "${PYQT_SIP_DIR}")
 +      SET(QSCI_SIP_DIR "@qsciPackageDir@/PyQt5/bindings")
        SET(QSCI_FOUND TRUE)
      ENDIF(QSCI_MOD_VERSION_STR)
