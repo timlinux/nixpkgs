@@ -36,6 +36,7 @@
 , curl
 , libffi
 , libepoxy
+, libevdev
 # postPatch:
 , glibc # gconv + locale
 # postFixup:
@@ -154,6 +155,8 @@ let
       curl
       libepoxy
       libffi
+    ] ++ lib.optionals (chromiumVersionAtLeast "114") [
+      libevdev
     ] ++ lib.optional systemdSupport systemd
       ++ lib.optionals cupsSupport [ libgcrypt cups ]
       ++ lib.optional pulseSupport libpulseaudio;
@@ -331,7 +334,7 @@ let
 
     buildPhase = let
       buildCommand = target: ''
-        ninja -C "${buildPath}" -j$NIX_BUILD_CORES "${target}"
+        TERM=dumb ninja -C "${buildPath}" -j$NIX_BUILD_CORES "${target}"
         (
           source chrome/installer/linux/common/installer.include
           PACKAGE=$packageName
@@ -341,7 +344,11 @@ let
       '';
       targets = extraAttrs.buildTargets or [];
       commands = map buildCommand targets;
-    in lib.concatStringsSep "\n" commands;
+    in ''
+      runHook preBuild
+      ${lib.concatStringsSep "\n" commands}
+      runHook postBuild
+    '';
 
     postFixup = ''
       # Make sure that libGLESv2 and libvulkan are found by dlopen.

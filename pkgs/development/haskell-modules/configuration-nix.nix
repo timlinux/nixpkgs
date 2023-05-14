@@ -514,7 +514,8 @@ self: super: builtins.intersectAttrs super {
     libraryHaskellDepends =
       (drv.libraryHaskellDepends or [])
       ++ lib.optionals (!(pkgs.stdenv.hostPlatform.isAarch64
-                          || pkgs.stdenv.hostPlatform.isx86_64)) [
+                          || pkgs.stdenv.hostPlatform.isx86_64)
+                        || (self.ghc.isGhcjs or false)) [
         self.unbounded-delays
       ];
   }) super.tasty;
@@ -906,6 +907,9 @@ self: super: builtins.intersectAttrs super {
   # Pass the correct libarchive into the package.
   streamly-archive = super.streamly-archive.override { archive = pkgs.libarchive; };
 
+  # Pass the correct lmdb into the package.
+  streamly-lmdb = super.streamly-lmdb.override { lmdb = pkgs.lmdb; };
+
   hlint = overrideCabal (drv: {
     postInstall = ''
       install -Dm644 data/hlint.1 -t "$out/share/man/man1"
@@ -1225,5 +1229,8 @@ self: super: builtins.intersectAttrs super {
   emanote = addBuildDepend pkgs.stork super.emanote;
 
   keid-render-basic = addBuildTool pkgs.glslang super.keid-render-basic;
+
+  # Disable checks to break dependency loop with SCalendar
+  scalendar = dontCheck super.scalendar;
 
 }
