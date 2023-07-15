@@ -17,6 +17,7 @@
 , bash
   # optional dependencies
 , anthropic
+, clarifai
 , cohere
 , openai
 , nlpcloud
@@ -31,9 +32,11 @@
 , azure-core
 , elasticsearch
 , opensearch-py
+, google-search-results
 , faiss
 , spacy
 , nltk
+, wikipedia
 , beautifulsoup4
 , tiktoken
 , jinja2
@@ -43,6 +46,7 @@
 , google-api-python-client
 , pypdf
 , networkx
+, pgvector
 , psycopg2
 , boto3
 , pyowm
@@ -52,24 +56,31 @@
 , duckduckgo-search
 , lark
 , jq
-, protobuf
 , steamship
 , pdfminer-six
+, lxml
+, chardet
+, requests-toolbelt
+, neo4j
+, langchainplus-sdk
   # test dependencies
 , pytest-vcr
 , pytest-asyncio
 , pytest-mock
+, pytest-socket
 , pandas
+, syrupy
 , toml
 , freezegun
 , responses
 , pexpect
 , pytestCheckHook
+, pythonRelaxDepsHook
 }:
 
 buildPythonPackage rec {
   pname = "langchain";
-  version = "0.0.168";
+  version = "0.0.229";
   format = "pyproject";
 
   disabled = pythonOlder "3.8";
@@ -78,7 +89,7 @@ buildPythonPackage rec {
     owner = "hwchase17";
     repo = "langchain";
     rev = "refs/tags/v${version}";
-    hash = "sha256-2L5yFkXr6dioEP1QAMXWX6x+IRbGUIW3cxLLxJJjkMI=";
+    hash = "sha256-9hPF+0bEcFGH2oop3e513kBp6UeUEBlPXD+2pZ4dCi0=";
   };
 
   postPatch = ''
@@ -90,6 +101,7 @@ buildPythonPackage rec {
 
   nativeBuildInputs = [
     poetry-core
+    pythonRelaxDepsHook
   ];
 
   buildInputs = [
@@ -114,6 +126,7 @@ buildPythonPackage rec {
   passthru.optional-dependencies = {
     llms = [
       anthropic
+      clarifai
       cohere
       openai
       nlpcloud
@@ -128,8 +141,17 @@ buildPythonPackage rec {
     openai = [
       openai
     ];
+    text_helpers = [
+      chardet
+    ];
+    clarifai = [
+      clarifai
+    ];
     cohere = [
       cohere
+    ];
+    docarray = [
+      # docarray
     ];
     embeddings = [
       sentence-transformers
@@ -142,6 +164,7 @@ buildPythonPackage rec {
     ];
     all = [
       anthropic
+      clarifai
       cohere
       openai
       nlpcloud
@@ -150,13 +173,13 @@ buildPythonPackage rec {
       manifest-ml
       elasticsearch
       opensearch-py
-      # google-search-results
+      google-search-results
       faiss
       sentence-transformers
       transformers
       spacy
       nltk
-      # wikipedia
+      wikipedia
       beautifulsoup4
       tiktoken
       torch
@@ -174,7 +197,7 @@ buildPythonPackage rec {
       # nomic
       # aleph-alpha-client
       # deeplake
-      # pgvector
+      pgvector
       psycopg2
       boto3
       pyowm
@@ -188,16 +211,23 @@ buildPythonPackage rec {
       # clickhouse-connect
       azure-cosmos
       # lancedb
+      # langkit
       lark
       pexpect
       # pyvespa
       # O365
       jq
       # docarray
-      protobuf
-      # hnswlib
       steamship
       pdfminer-six
+      lxml
+      requests-toolbelt
+      neo4j
+      # openlm
+      # azure-ai-formrecognizer
+      # azure-ai-vision
+      # azure-cognitiveservices-speech
+      langchainplus-sdk
     ];
   };
 
@@ -205,8 +235,10 @@ buildPythonPackage rec {
     pytestCheckHook
     pytest-vcr
     pytest-mock
+    pytest-socket
     pytest-asyncio
     pandas
+    syrupy
     toml
     freezegun
     responses
@@ -221,6 +253,9 @@ buildPythonPackage rec {
     # these tests have db access
     "test_table_info"
     "test_sql_database_run"
+
+    # these tests have network access
+    "test_socket_disabled"
   ];
 
   meta = with lib; {

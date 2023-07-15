@@ -16,14 +16,12 @@ let
     harfbuzz = harfbuzz.override {
       withIcu = true; withGraphite2 = true;
     };
+    inherit useFixedHashes;
   };
-
-  # map: name -> fixed-output hash
-  fixedHashes = lib.optionalAttrs useFixedHashes (import ./fixedHashes.nix);
 
   # function for creating a working environment from a set of TL packages
   combine = import ./combine.nix {
-    inherit bin combinePkgs buildEnv lib makeWrapper writeText
+    inherit bin combinePkgs buildEnv lib makeWrapper writeText runCommand
       stdenv python3 ruby perl gnused gnugrep coreutils libfaketime makeFontsConf;
     ghostscript = ghostscript_headless;
   };
@@ -36,31 +34,32 @@ let
   tl = let
     orig = removeAttrs tlpdb [ "00texlive.config" ];
 
-    overridden = orig // {
+    overridden = lib.recursiveUpdate orig {
       # overrides of texlive.tlpdb
 
-      texlive-msg-translations = orig.texlive-msg-translations // {
-        hasRunfiles = false; # only *.po for tlmgr
-      };
+      # only *.po for tlmgr
+      texlive-msg-translations.hasTlpkg = false;
 
-      xdvi = orig.xdvi // { # it seems to need it to transform fonts
-        deps = (orig.xdvi.deps or []) ++  [ "metafont" ];
-      };
+      # it seems to need it to transform fonts
+      xdvi.deps = (orig.xdvi.deps or []) ++  [ "metafont" ];
+
+      # tlpdb lists license as "unknown", but the README says lppl13: http://mirrors.ctan.org/language/arabic/arabi-add/README
+      arabi-add.license = [  "lppl13c" ];
+
+      # TODO: remove this when updating to texlive-2023, npp-for-context is no longer in texlive
+      # tlpdb lists license as "noinfo", but it's gpl3: https://github.com/luigiScarso/context-npp
+      npp-for-context.license = [  "gpl3Only" ];
 
       # remove dependency-heavy packages from the basic collections
-      collection-basic = orig.collection-basic // {
-        deps = lib.filter (n: n != "metafont" && n != "xdvi") orig.collection-basic.deps;
-      };
-      # add them elsewhere so that collections cover all packages
-      collection-metapost = orig.collection-metapost // {
-        deps = orig.collection-metapost.deps ++ [ "metafont" ];
-      };
-      collection-plaingeneric = orig.collection-plaingeneric // {
-        deps = orig.collection-plaingeneric.deps ++ [ "xdvi" ];
-      };
+      collection-basic.deps = lib.subtractLists [ "metafont" "xdvi" ] orig.collection-basic.deps;
 
-      texdoc = orig.texdoc // {
-        version = orig.texdoc.version + "-tlpdb-" + (toString tlpdbVersion.revision);
+      # add them elsewhere so that collections cover all packages
+      collection-metapost.deps = orig.collection-metapost.deps ++ [ "metafont" ];
+      collection-plaingeneric.deps = orig.collection-plaingeneric.deps ++ [ "xdvi" ];
+
+      texdoc = {
+        extraRevision = ".tlpdb${toString tlpdbVersion.revision}";
+        extraVersion = "-tlpdb-${toString tlpdbVersion.revision}";
 
         # build Data.tlpdb.lua (part of the 'tlType == "run"' package)
         postUnpack = ''
@@ -82,8 +81,6 @@ let
     }; # overrides
 
     in lib.mapAttrs mkTLPkg overridden;
-    # TODO: texlive.infra for web2c config?
-
 
   # create a TeX package: an attribute set { pkgs = [ ... ]; ... } where pkgs is a list of derivations
   mkTLPkg = pname: attrs:
@@ -91,12 +88,12 @@ let
       version = attrs.version or (toString attrs.revision);
       mkPkgV = tlType: let
         pkg = attrs // {
-          sha512 = attrs.sha512.${tlType};
+          sha512 = attrs.sha512.${if tlType == "tlpkg" then "run" else tlType};
           inherit pname tlType version;
         };
         in mkPkg pkg;
     in {
-      # TL pkg contains lists of packages: runtime files, docs, sources, binaries
+      # TL pkg contains lists of packages: runtime files, docs, sources, tlpkg, binaries
       pkgs =
         # tarball of a collection/scheme itself only contains a tlobj file
         [( if (attrs.hasRunfiles or false) then mkPkgV "run"
@@ -111,6 +108,7 @@ let
         )]
         ++ lib.optional (attrs.sha512 ? doc) (mkPkgV "doc")
         ++ lib.optional (attrs.sha512 ? source) (mkPkgV "source")
+        ++ lib.optional (attrs.hasTlpkg or false) (mkPkgV "tlpkg")
         ++ lib.optional (bin ? ${pname})
             ( bin.${pname} // { tlType = "bin"; } );
     };
@@ -157,13 +155,24 @@ let
     xzcat "$tlpdbxz" | sed -rn -f "$tl2nix" | uniq > "$out"
   '';
 
+  # map: name -> fixed-output hash
+  fixedHashes = lib.optionalAttrs useFixedHashes (import ./fixed-hashes.nix);
+
+  # NOTE: the fixed naming scheme must match generated-fixed-hashes.nix
+  # name for the URL
+  mkURLName = { pname, tlType, ... }: pname + lib.optionalString (tlType != "run" && tlType != "tlpkg") ".${tlType}";
+  # name + revision for the fixed output hashes
+  mkFixedName = { tlType, revision, extraRevision ? "", ... }@attrs: mkURLName attrs + (lib.optionalString (tlType == "tlpkg") ".tlpkg") + ".r${toString revision}${extraRevision}";
+  # name + version for the derivation
+  mkTLName = { tlType, version, extraVersion ? "", ... }@attrs: mkURLName attrs + (lib.optionalString (tlType == "tlpkg") ".tlpkg") + "-${version}${extraVersion}";
+
   # create a derivation that contains an unpacked upstream TL package
-  mkPkg = { pname, tlType, revision, version, sha512, postUnpack ? "", stripPrefix ? 1, ... }@args:
+  mkPkg = { pname, tlType, revision, version, sha512, extraRevision ? "", postUnpack ? "", stripPrefix ? 1, ... }@args:
     let
       # the basename used by upstream (without ".tar.xz" suffix)
-      urlName = pname + lib.optionalString (tlType != "run") ".${tlType}";
-      tlName = urlName + "-${version}";
-      fixedHash = fixedHashes.${tlName} or null; # be graceful about missing hashes
+      urlName = mkURLName args;
+      tlName = mkTLName args;
+      fixedHash = fixedHashes.${mkFixedName args} or null; # be graceful about missing hashes
 
       urls = args.urls or (if args ? url then [ args.url ] else
         map (up: "${up}/archive/${urlName}.r${toString revision}.tar.xz") (args.urlPrefixes or urlPrefixes));
@@ -171,15 +180,20 @@ let
     in runCommand "texlive-${tlName}"
       ( {
           src = fetchurl { inherit urls sha512; };
-          inherit stripPrefix;
+          meta = {
+            license = map (x: lib.licenses.${x}) (args.license or []);
+          };
+          inherit stripPrefix tlType;
           # metadata for texlive.combine
           passthru = {
-            inherit pname tlType version;
+            inherit pname tlType revision version extraRevision;
           } // lib.optionalAttrs (tlType == "run" && args ? deps) {
             tlDeps = map (n: tl.${n}) args.deps;
           } // lib.optionalAttrs (tlType == "run") {
             hasFormats = args.hasFormats or false;
             hasHyphens = args.hasHyphens or false;
+          } // lib.optionalAttrs (tlType == "tlpkg" && args ? postactionScript) {
+            postactionScript = args.postactionScript;
           };
         } // lib.optionalAttrs (fixedHash != null) {
           outputHash = fixedHash;
@@ -189,9 +203,16 @@ let
       )
       ( ''
           mkdir "$out"
-          tar -xf "$src" \
-          --strip-components="$stripPrefix" \
-          -C "$out" --anchored --exclude=tlpkg --keep-old-files
+          if [[ "$tlType"  == "tlpkg" ]]; then
+            tar -xf "$src" \
+              --strip-components=1 \
+              -C "$out" --anchored --exclude=tlpkg/tlpobj --exclude=tlpkg/installer --exclude=tlpkg/gpg --keep-old-files \
+              tlpkg
+          else
+            tar -xf "$src" \
+              --strip-components="$stripPrefix" \
+              -C "$out" --anchored --exclude=tlpkg --keep-old-files
+          fi
         '' + postUnpack
       );
 
@@ -211,9 +232,13 @@ let
       operator = { pkg, ... }: pkgListToSets (pkg.tlDeps or []);
     });
 
-  assertions =
-    lib.assertMsg (tlpdbVersion.year == version.texliveYear) "TeX Live year in texlive does not match tlpdb.nix, refusing to evaluate" &&
-    lib.assertMsg (tlpdbVersion.frozen == version.final) "TeX Live final status in texlive does not match tlpdb.nix, refusing to evaluate";
+  assertions = with lib;
+    assertMsg (tlpdbVersion.year == version.texliveYear) "TeX Live year in texlive does not match tlpdb.nix, refusing to evaluate" &&
+    assertMsg (tlpdbVersion.frozen == version.final) "TeX Live final status in texlive does not match tlpdb.nix, refusing to evaluate" &&
+    (!useFixedHashes ||
+      (let all = concatLists (catAttrs "pkgs" (attrValues tl));
+         fods = filter (p: isDerivation p && p.tlType != "bin") all;
+      in builtins.all (p: assertMsg (p ? outputHash) "The TeX Live package '${p.pname + lib.optionalString (p.tlType != "run") ("." + p.tlType)}' does not have a fixed output hash. Please read UPGRADING.md on how to build a new 'fixed-hashes.nix'.") fods));
 
 in
   tl // {

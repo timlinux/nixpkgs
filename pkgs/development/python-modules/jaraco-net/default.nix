@@ -26,6 +26,7 @@
 , importlib-resources
 , pyparsing
 , requests-mock
+, nettools
 }:
 
 buildPythonPackage rec {
@@ -78,6 +79,8 @@ buildPythonPackage rec {
     importlib-resources
     pyparsing
     requests-mock
+  ] ++ lib.optionals stdenv.isDarwin [
+    nettools
   ];
 
   disabledTestPaths = [
@@ -88,6 +91,9 @@ buildPythonPackage rec {
     "jaraco/net/scanner.py"
     "tests/test_cookies.py"
   ];
+
+  # cherrypy does not support Python 3.11
+  doCheck = pythonOlder "3.11";
 
   meta = {
     changelog = "https://github.com/jaraco/jaraco.net/blob/${src.rev}/CHANGES.rst";

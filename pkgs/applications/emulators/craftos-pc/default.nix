@@ -1,6 +1,7 @@
 { lib
 , stdenv
 , fetchFromGitHub
+, callPackage
 , patchelf
 , unzip
 , poco
@@ -37,7 +38,7 @@ stdenv.mkDerivation rec {
     owner = "MCJack123";
     repo = "craftos2";
     rev = "v${version}";
-    sha256 = "sha256-Vb6mvim42Kvn7A3Qsp4gvTRBGQ5OJ9pVij96LZwWyuQ=";
+    sha256 = "sha256-9XMc7zmtPxlt3WgS93lUJNMFtUJ/llG9SFGtgdFqZEA=";
   };
 
   buildInputs = [ patchelf poco openssl SDL2 SDL2_mixer ncurses libpng pngpp libwebp ];
@@ -58,6 +59,11 @@ stdenv.mkDerivation rec {
     cp -R api $out/include/CraftOS-PC
     cp -R ${craftos2-rom}/* $out/share/craftos
   '';
+
+  passthru.tests = {
+    eval-hello-world = callPackage ./test-eval-hello-world { };
+    eval-periphemu = callPackage ./test-eval-periphemu { };
+  };
 
   meta = with lib; {
     description = "An implementation of the CraftOS-PC API written in C++ using SDL";

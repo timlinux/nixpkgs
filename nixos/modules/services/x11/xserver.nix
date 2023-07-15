@@ -725,7 +725,7 @@ in
     systemd.defaultUnit = mkIf cfg.autorun "graphical.target";
 
     systemd.services.display-manager =
-      { description = "X11 Server";
+      { description = "Display Manager";
 
         after = [ "acpid.service" "systemd-logind.service" "systemd-user-sessions.service" ];
 
@@ -776,7 +776,7 @@ in
         xorg.xf86inputevdev.out
       ];
 
-    system.extraDependencies = singleton (pkgs.runCommand "xkb-validated" {
+    system.checks = singleton (pkgs.runCommand "xkb-validated" {
       inherit (cfg) xkbModel layout xkbVariant xkbOptions;
       nativeBuildInputs = with pkgs.buildPackages; [ xkbvalidate ];
       preferLocalBuild = true;

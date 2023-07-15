@@ -10,14 +10,14 @@
 
 python3.pkgs.buildPythonApplication rec {
   pname = "dvc";
-  version = "2.56.0";
+  version = "3.5.0";
   format = "pyproject";
 
   src = fetchFromGitHub {
     owner = "iterative";
     repo = pname;
     rev = "refs/tags/${version}";
-    hash = "sha256-IpdlNwOuUNWgfphRH2UTQ/IvBHo39PafCqyioju8miI=";
+    hash = "sha256-AQE8KQ5j/EgN1P2HFghWXgQJbBc+KYu8kwNeV0Tktho=";
   };
 
   pythonRelaxDeps = [
@@ -88,6 +88,8 @@ python3.pkgs.buildPythonApplication rec {
 
   # Tests require access to real cloud services
   doCheck = false;
+
+  pythonImportsCheck = [ "dvc" "dvc.api" ];
 
   meta = with lib; {
     description = "Version Control System for Machine Learning Projects";
