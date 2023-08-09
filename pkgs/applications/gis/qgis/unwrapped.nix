@@ -73,14 +73,14 @@ let
     six
   ];
 in mkDerivation rec {
-  version = "3.30.0";
+  version = "3.32.1";
   pname = "qgis-unwrapped";
 
   src = fetchFromGitHub {
     owner = "qgis";
     repo = "QGIS";
     rev = "final-${lib.replaceStrings [ "." ] [ "_" ] version}";
-    hash = "sha256-9lk/qT1+QtqlE9rypZTIpbiBMnaylvYRykGfnvj3KXQ=";
+    hash = "";
   };
 
   passthru = {
@@ -128,11 +128,18 @@ in mkDerivation rec {
       pyQt5PackageDir = "${py.pkgs.pyqt5}/${py.pkgs.python.sitePackages}";
       qsciPackageDir = "${py.pkgs.qscintilla-qt5}/${py.pkgs.python.sitePackages}";
     })
+    ./fix-qsci.patch
   ];
+
+  #env = {
+  #  QT_QPA_PLATFORM_PLUGIN_PATH="${qt5.qtbase.bin}/lib/qt-${qt5.qtbase.version}/plugins/platforms";
+  #};
 
   cmakeFlags = [
     "-DWITH_3D=True"
     "-DWITH_PDAL=TRUE"
+    "-DENABLE_TESTS=False"
+    "-DWITH_SERVER=False"
   ] ++ lib.optional (!withWebKit) "-DWITH_QTWEBKIT=OFF"
     ++ lib.optional withGrass (let
         gmajor = lib.versions.major grass.version;
