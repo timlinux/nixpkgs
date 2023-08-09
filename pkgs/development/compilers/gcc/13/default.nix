@@ -195,11 +195,9 @@ let majorVersion = "13";
 
 in
 
-lib.pipe (stdenv.mkDerivation ({
+lib.pipe ((callFile ../common/builder.nix {}) ({
   pname = "${crossNameAddon}${name}";
   inherit version;
-
-  builder = ../builder.sh;
 
   src = fetchurl {
     url = "mirror://gcc/releases/gcc-${version}/gcc-${version}.tar.xz";
@@ -265,10 +263,7 @@ lib.pipe (stdenv.mkDerivation ({
             )
           '';
 
-  # kludge to prevent a mass-rebuild; will be removed in a PR sent to staging
-  crossStageStatic = withoutTargetLibc;
-
-  inherit noSysDirs staticCompiler
+  inherit noSysDirs staticCompiler withoutTargetLibc
     libcCross crossMingw;
 
   inherit (callFile ../common/dependencies.nix { }) depsBuildBuild nativeBuildInputs depsBuildTarget buildInputs depsTargetTarget;

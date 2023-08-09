@@ -47,7 +47,6 @@ python3.pkgs.buildPythonApplication rec {
     libadwaita
     libnotify
     webkitgtk_6_0
-    gobject-introspection
   ];
 
   propagatedBuildInputs = with python3.pkgs; [
@@ -81,9 +80,7 @@ python3.pkgs.buildPythonApplication rec {
   '';
 
   passthru = {
-    updateScript = nix-update-script {
-      attrPath = "komikku";
-    };
+    updateScript = nix-update-script { };
   };
 
   meta = with lib; {

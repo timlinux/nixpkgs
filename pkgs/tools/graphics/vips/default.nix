@@ -40,7 +40,7 @@
 
 stdenv.mkDerivation rec {
   pname = "vips";
-  version = "8.14.2";
+  version = "8.14.3";
 
   outputs = [ "bin" "out" "man" "dev" ] ++ lib.optionals (!stdenv.isDarwin) [ "devdoc" ];
 
@@ -48,7 +48,7 @@ stdenv.mkDerivation rec {
     owner = "libvips";
     repo = "libvips";
     rev = "v${version}";
-    hash = "sha256-QUWZ11t2JEJBdpNuIY2uRiSL/hffRbV0SV5HowxWaME=";
+    hash = "sha256-2BE/cDQU/FP0Lo9/gZiG1IAskTbnhBtzbcL2dRziHmU=";
     # Remove unicode file names which leads to different checksums on HFS+
     # vs. other filesystems because of unicode normalisation.
     postFetch = ''
@@ -104,9 +104,10 @@ stdenv.mkDerivation rec {
   mesonFlags = [
     "-Dpdfium=disabled"
     "-Dnifti=disabled"
-  ] ++ lib.optionals (!stdenv.isDarwin) [
-    "-Dgtk_doc=true"
-  ];
+  ]
+  ++ lib.optional (!stdenv.isDarwin) "-Dgtk_doc=true"
+  ++ lib.optional (imagemagick == null) "-Dmagick=disabled"
+  ;
 
   meta = with lib; {
     changelog = "https://github.com/libvips/libvips/blob/${src.rev}/ChangeLog";

@@ -199,11 +199,9 @@ in
 # We need all these X libraries when building AWT with GTK.
 assert x11Support -> (filter (x: x == null) ([ gtk2 libart_lgpl ] ++ xlibs)) == [];
 
-lib.pipe (stdenv.mkDerivation ({
+lib.pipe ((callFile ../common/builder.nix {}) ({
   pname = "${crossNameAddon}${name}";
   inherit version;
-
-  builder = ../builder.sh;
 
   src = if stdenv.targetPlatform.isVc4 then fetchFromGitHub {
     owner = "itszor";
@@ -269,10 +267,7 @@ lib.pipe (stdenv.mkDerivation ({
         ))
     );
 
-  # kludge to prevent a mass-rebuild; will be removed in a PR sent to staging
-  crossStageStatic = withoutTargetLibc;
-
-  inherit noSysDirs staticCompiler langJava
+  inherit noSysDirs staticCompiler langJava withoutTargetLibc
     libcCross crossMingw;
 
   inherit (callFile ../common/dependencies.nix { })
