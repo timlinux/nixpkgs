@@ -80,7 +80,7 @@ in mkDerivation rec {
     owner = "qgis";
     repo = "QGIS";
     rev = "final-${lib.replaceStrings [ "." ] [ "_" ] version}";
-    hash = "";
+    hash = "sha256-VNC32ayKN3kiOJMAUPCy5j0wqltSLHjiKIeneFOJqH4=";
   };
 
   passthru = {
