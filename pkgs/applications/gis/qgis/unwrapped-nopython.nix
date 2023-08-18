@@ -6,6 +6,7 @@
 , flex
 , bison
 , proj
+, gdal
 , geos
 , sqlite
 , gsl
@@ -61,6 +62,7 @@ in mkDerivation rec {
   buildInputs = [
     openssl
     proj
+    gdal
     geos
     sqlite
     gsl
